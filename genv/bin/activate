@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/wfinot/S23/TR-23/TR-Analy"
+VIRTUAL_ENV="/Users/wfinot/S23/TR-23/genv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
@@ -55,9 +55,9 @@ fi
 
 if [ -z "${VIRTUAL_ENV_DISABLE_PROMPT:-}" ] ; then
     _OLD_VIRTUAL_PS1="${PS1:-}"
-    PS1="(TR-Analy) ${PS1:-}"
+    PS1="(genv) ${PS1:-}"
     export PS1
-    VIRTUAL_ENV_PROMPT="(TR-Analy) "
+    VIRTUAL_ENV_PROMPT="(genv) "
     export VIRTUAL_ENV_PROMPT
 fi
 
