@@ -13,7 +13,7 @@
 # --- Configuration
 
 # Adjust this to the number of cores available
-CORES = 4
+CORES = 32
 
 # Directory where NDJSONs should be placed
 OUTPUT_DIR = "data/ndjson/"
