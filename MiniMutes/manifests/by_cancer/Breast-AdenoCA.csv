@@ -2,7 +2,6 @@ icgc_donor_id,case_object_id,control_object_id,case_file_name,control_file_name,
 DO1001,ee9d1804-f6ab-5348-9384-fc30ba74b128,17f1c219-040e-5925-88bf-faa0e661592f,2b845b723d691204a14e5bddc2d73e55.bam,83f31e082cc17e5b14cf8b07afdc89ca.bam,female,Breast-AdenoCA
 DO1002,eff6d922-a774-57be-a41c-dfe28ca0b84a,ba1a24fa-be07-519c-95fc-8fb317ff7a3c,d71f32b81cdc2b244002beedfe8af310.bam,e19b256847e1bf578a05608ad2e4ef64.bam,female,Breast-AdenoCA
 DO1003,0740ad42-603e-5926-a390-07f23f30a908,24bd82eb-6a16-5b12-9bd7-f7604c636dc6,47fb91c726f5d03bfdf1b387ccce8aaf.bam,9b853d15dfbfe1b9f3eaad9b039107e4.bam,female,Breast-AdenoCA
-DO1004,ecdc095c-f6cc-5916-bdac-2dcbe9609e52,4f6ef9ea-9575-5c65-9497-38db620a23b8,99d91eaa92214a3809350b7acad4aaf2.bam,cd68ee9c75a886ddf4baa9ee504089fc.bam,female,Breast-AdenoCA
 DO1005,0b4573e7-6c69-5996-86de-463036d6589b,2b1b2587-1f4e-5918-872f-b87bac0c2429,b6ee98f353017df7d1354ae22fc9e3dc.bam,228a53b73d2c63eb66530b172cb65b41.bam,female,Breast-AdenoCA
 DO1007,4d4a60e7-58e3-5bb7-840b-28c28c000102,1d9e040d-2e93-5fa8-8405-b5b58560a40b,fbea9273f92db57593383df21f483cff.bam,04b444338ca9115da592c7533028ee03.bam,female,Breast-AdenoCA
 DO1008,9b1e3c7d-edd9-5be5-8f39-b709a5d3ec05,be8ef118-7082-5462-aba7-4554c05b60ea,92706898d41bca1d4cd94fa8499e829d.bam,616481944c74066664e0ef8189f371eb.bam,female,Breast-AdenoCA
