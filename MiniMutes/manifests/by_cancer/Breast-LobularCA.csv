@@ -1,0 +1,14 @@
+icgc_donor_id,case_object_id,control_object_id,case_file_name,control_file_name,sex,histology_abbreviation
+DO1014,d6688d42-3cb4-51f9-88a4-f1e622fb1c45,7730b77c-aed6-57f6-acf8-085fa812301f,a7d35e3836633cc12ad6e415ad9a2f14.bam,4e3d591bff49bc3bd093ca9c846c0c64.bam,female,Breast-LobularCA
+DO218062,b4637c00-fb2c-52a9-ab9b-8fc2ab84744c,7582b2f9-a59c-5e5a-91a2-d79d8cc2deae,bed760a07ef65925400f21dafd9c0f2e.bam,2fa3bf5c31213aa8a5c24497f0e7026e.bam,female,Breast-LobularCA
+DO218167,3b86b94d-6884-52e0-97ae-f015949d0e46,a2bae235-cda8-5859-a4f7-7a0f53f722be,868a8f7a46ea621ff343ed1c0c0c6cf3.bam,02226b857f74317cd2cd8a389b186e0c.bam,female,Breast-LobularCA
+DO218269,679da843-465d-58db-a541-35579fadf6c3,833aedd4-a8ef-572e-b5c0-865990d27ca8,0f0bfdf8d64c44b955129ab1e8a9a046.bam,46333afe4198d17ae2d1087f9bd9de3a.bam,female,Breast-LobularCA
+DO218377,78afaff3-2a91-5e29-b784-b1d6354ae545,ad0fa4e9-e067-5e22-b9f4-049513542aeb,dc586ba727711659c589d5c0e245f40e.bam,2b32eef776a46492513db8331796e396.bam,female,Breast-LobularCA
+DO218488,29ab360b-c56e-5e3c-bfe7-e8cbd682d8d8,65b03174-7c9f-5171-b22e-f7c87a591e24,4b10addb14e2f1431a8b1ed4ec160c60.bam,00db6dca2dd605d2f1c8bc4c9bf45d1c.bam,female,Breast-LobularCA
+DO220820,6f350989-85f6-53b2-8961-c6a9c159252f,4d13f839-db20-5521-bfb1-f7e58762a931,f942c24e43418beb7aedf9d3400f439e.bam,0662486a572be505c9564e2ed50ddc94.bam,female,Breast-LobularCA
+DO1281,0f388c6b-c057-4147-9f4d-e1dac9a0bb20,dc642cc8-9467-48d1-999e-49218945fa16,PCAWG.0d5b5b1d-5338-4e96-a0d7-f1521fa95cdc.bam,PCAWG.38c6b56f-3b06-46ea-be92-9acba8cf0a75.bam,female,Breast-LobularCA
+DO1537,5d113006-ce65-4a36-b19f-8edcd4828ec2,28e38373-b7b4-411b-9262-a913f0a8d598,PCAWG.353a27de-f667-4bf7-9d49-32b4f75bd452.bam,PCAWG.4140ef27-e23a-4e5b-8cc0-02d97d44b74a.bam,female,Breast-LobularCA
+DO2647,2a7000c7-02b6-48bd-936d-66af5b4a0bf6,0d2bdc14-105e-4266-869e-1bb8a57e9cbf,PCAWG.d857a214-e446-4335-a73a-3ec0aacfe711.bam,PCAWG.9a8c7c5b-d323-4293-8106-01b3bb7461ba.bam,female,Breast-LobularCA
+DO3500,e0fdcf0f-a950-4cef-8a7f-3119ed1c7034,28156422-4591-4029-b756-a51a7356faae,PCAWG.07a937e2-44cb-4c60-8975-a03006f9639a.bam,PCAWG.4b4f9b02-0d1f-42e1-90da-4e805ae9fa7b.bam,female,Breast-LobularCA
+DO4018,e5fc246a-9ac7-4381-9433-8ca79dc4f057,64658465-1ee6-486e-ae7d-e9fa3b7e722e,PCAWG.86778b7c-298d-491b-9296-34ad2973f53d.bam,PCAWG.26a0f7a0-4361-4886-9260-0d142b76129e.bam,female,Breast-LobularCA
+DO6144,a20adb75-6354-4b00-ac71-4257466a617b,a8192d15-2fce-4e52-8bb7-c515d4efa77c,PCAWG.bc29a8d7-54b5-4012-b6fc-4ba09c637628.bam,PCAWG.285f164e-24f4-4bb5-8cf7-ae27f2b97d54.bam,female,Breast-LobularCA

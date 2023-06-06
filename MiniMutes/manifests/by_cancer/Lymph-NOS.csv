@@ -1,0 +1,2 @@
+icgc_donor_id,case_object_id,control_object_id,case_file_name,control_file_name,sex,histology_abbreviation
+DO52682,e3097e13-52e6-5233-a7eb-e0c81ce83c5b,c270fdbe-70bf-53dc-a2bb-8a75977c2d17,c8a7f582724170ed758a80845e3833fc.bam,fb3abbc73b11b0b9f9d6f8760d53160a.bam,female,Lymph-NOS

@@ -1,0 +1,4 @@
+icgc_donor_id,case_object_id,control_object_id,case_file_name,control_file_name,sex,histology_abbreviation
+DO1000,9793d1f6-799d-5556-8bbe-9bb5d740d5c8,57b3e912-fcbc-5e8c-a62a-cbfbfd927a7c,121a58e9b8cfbdf897434a1134f7fb6c.bam,487853b446a82b6d270716ea5ae1633d.bam,female,Breast-DCIS
+DO218478,95bf0e4e-02d4-5ca7-8476-cff56e7bfb92,ca5d0b81-1a17-5a53-b9f8-2208b5724fcb,8ab3c3cfcd5183c3f8872dec9087af13.bam,cce7700af661cd1bfd87b0055c6a21d8.bam,female,Breast-DCIS
+DO220825,99da740e-3f0c-59ba-af85-a1a28fa58314,1bf3072d-c2c2-51b5-86d3-b4b56144e9ea,7c0080375414f18c4d39f0eaa7fa454f.bam,ff5321f8588106f8fc14735b66ba005d.bam,female,Breast-DCIS
