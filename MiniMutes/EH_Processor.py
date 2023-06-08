@@ -6,11 +6,8 @@ import pandas as pd
 import os
 import argparse
 
-# Load the data and split the genotype column into two numeric columns
-def process_dataframe(path):
-    # Load the data
-    df = pd.read_json(path, lines=True)
-
+# Split the genotype column into two numeric columns
+def process_dataframe(df):
     # Apply add_slash to the 'genotype' column
     df['genotype'] = df['genotype'].astype('string').apply(add_slash)
 
@@ -22,6 +19,23 @@ def process_dataframe(path):
 
     return df
 
+
+# Load the data, check for errors, and return the DataFrame
+def load_dataframe(path):
+    try:
+        df = pd.read_json(path, lines=True)
+        # Check if 'genotype' column exists
+        if 'genotype' not in df.columns:
+            print(f"Error: {path} does not contain a 'genotype' column.", file=sys.stderr)
+            return None
+        # Check if DataFrame is empty
+        if df.empty:
+            print(f"Error: {path} is empty.", file=sys.stderr)
+            return None
+        return df
+    except (FileNotFoundError, IsADirectoryError, ValueError) as err:
+        print(f"Error: {path}: {err.strerror}", file=sys.stderr)
+        return None
 
 
 # if there is no slash in the string, make it 'orginal/original'
@@ -40,9 +54,18 @@ def add_slash(string):
 def load_and_diff(loc, sample):
     path_format = loc + '/{id}.ndjson'
     print('Processing {}'.format(sample['icgc_donor_id']))
-    # Use the helper function to process the dataframes
-    dfn = process_dataframe(path_format.format(id=sample['control_object_id']))
-    dft = process_dataframe(path_format.format(id=sample['case_object_id']))
+
+    # Load the dataframes
+    dfn_raw = load_dataframe(path_format.format(id=sample['control_object_id']))
+    dft_raw = load_dataframe(path_format.format(id=sample['case_object_id']))
+
+    # If any dataframe could not be loaded, return None
+    if dfn_raw is None or dft_raw is None:
+        return None
+
+    # Process the dataframes
+    dfn = process_dataframe(dfn_raw)
+    dft = process_dataframe(dft_raw)
 
     # Subtract genotype1 and genotype2 columns in both dataframes
     diff1 = dfn['genotype1'].subtract(dft['genotype1'])
@@ -56,16 +79,15 @@ def load_and_diff(loc, sample):
 
     return diff_df
 
-
 def init_argparse():
     parser = argparse.ArgumentParser(
         usage="%(prog)s [OPTION] [FILE]...",
         description='Process the EH data.')
-    parser.add_argument('--ExpansionHunterData', required=True, help='Directory w/ ndjson files')
-    parser.add_argument('--manifest', required=True, help='Paired files to be processed')
-    parser.add_argument('--disease_name', required=True, help='Name of the disease')
+    parser.add_argument('--EHD', required=True, help='Directory w/ ndjson files')
+    parser.add_argument('--manifest', required=True, help='CSV of paired files to be processed, with columns: icgc_donor_id, control_object_id, case_object_id, sex')
+    parser.add_argument('--dis', help='Name of the disease (default: Name of --EHD arg)')
     parser.add_argument('--step', default=0, type=int, choices=[0, 1], help='Step to process the data from: {0: raw ndjson, 1: tidied data} (default 0)')
-    parser.add_argument('--tidied_data', help='Location of the tidied data (If step is 1)')
+    parser.add_argument('--tidat', help='Location of the tidied data (If step is 1)')
     
     return parser
 
@@ -73,22 +95,18 @@ def main():
     parser = init_argparse()
     args = parser.parse_args()
 
-    # Check if the files exist
-    if not os.path.exists(args.ExpansionHunterData):
-        print(f"Error: {args.ExpansionHunterData} does not exist.")
-        return
-    if not os.path.exists(args.manifest):
-        print(f"Error: {args.manifest} does not exist.")
-        return
-
+    # Set the disease name if it was not given
+    if args.disease_name is None:
+        args.disease_name = os.path.basename(args.ExpansionHunterData)
+        
     # Depending on the step, do the appropriate processing
     if args.step == 0:
         # Load and diff the data
         mani = pd.read_csv(args.manifest)
-        # Create an empty DataFrame 
-        dfs = []
-        for index, row in mani.iterrows():
-            dfs.append(load_and_diff(args.ExpansionHunterData, row))
+        
+        dfs = mani.apply(load_and_diff, args=(args.ExpansionHunterData,), axis=1).tolist()
+        dfs = [df for df in dfs if df is not None]
+        
         df = pd.concat(dfs, axis=0)
         df.to_csv("{disease}_res.csv".format(disease=args.disease_name))
 
