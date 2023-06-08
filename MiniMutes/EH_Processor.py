@@ -3,7 +3,8 @@
 ###        a csv file containing the list of files to be processed
 
 import pandas as pd
-import sys
+import os
+import argparse
 
 # Load the data and split the genotype column into two numeric columns
 def process_dataframe(path):
@@ -38,6 +39,7 @@ def add_slash(string):
 # sample: row from the mainfest
 def load_and_diff(loc, sample):
     path_format = loc + '/{id}.ndjson'
+    print('Processing {}'.format(sample['icgc_donor_id']))
     # Use the helper function to process the dataframes
     dfn = process_dataframe(path_format.format(id=sample['control_object_id']))
     dft = process_dataframe(path_format.format(id=sample['case_object_id']))
@@ -55,25 +57,54 @@ def load_and_diff(loc, sample):
     return diff_df
 
 
-def main(ExpansionHunterData, manifest):
-    # Load and diff the data
-    mani = pd.read_csv(manifest)
-    mani = mani.head(3)
-    # Create an empty DataFrame 
-    dfs = []
-    for index, row in mani.iterrows():
-        dfs.append(load_and_diff(ExpansionHunterData, row))
-        print("Processed {} out of {}".format(index+1, len(mani)))
-    df = pd.concat(dfs, axis=0)
-    df.to_csv('EHPoutput.csv')
+def init_argparse():
+    parser = argparse.ArgumentParser(
+        usage="%(prog)s [OPTION] [FILE]...",
+        description='Process the EH data.')
+    parser.add_argument('--ExpansionHunterData', required=True, help='Directory w/ ndjson files')
+    parser.add_argument('--manifest', required=True, help='Paired files to be processed')
+    parser.add_argument('--disease_name', required=True, help='Name of the disease')
+    parser.add_argument('--step', default=0, type=int, choices=[0, 1], help='Step to process the data from: {0: raw ndjson, 1: tidied data} (default 0)')
+    parser.add_argument('--tidied_data', help='Location of the tidied data (If step is 1)')
+    
+    return parser
 
-    # Loop through the manifest and load and diff the data
-    print("Saved to EHPoutput.csv")
+def main():
+    parser = init_argparse()
+    args = parser.parse_args()
 
+    # Check if the files exist
+    if not os.path.exists(args.ExpansionHunterData):
+        print(f"Error: {args.ExpansionHunterData} does not exist.")
+        return
+    if not os.path.exists(args.manifest):
+        print(f"Error: {args.manifest} does not exist.")
+        return
 
+    # Depending on the step, do the appropriate processing
+    if args.step == 0:
+        # Load and diff the data
+        mani = pd.read_csv(args.manifest)
+        # Create an empty DataFrame 
+        dfs = []
+        for index, row in mani.iterrows():
+            dfs.append(load_and_diff(args.ExpansionHunterData, row))
+        df = pd.concat(dfs, axis=0)
+        df.to_csv("{disease}_res.csv".format(disease=args.disease_name))
+
+        # Loop through the manifest and load and diff the data
+        print("Saved to {disease}.csv".format(disease=args.disease_name))
+    elif args.step == 1:
+        # Check if the tidied_data argument was given
+        if args.tidied_data is None:
+            print("Error: the --tidied_data argument is necessary when --step is 1.")
+            return
+        if not os.path.exists(args.tidied_data):
+            print(f"Error: {args.tidied_data} does not exist.")
+            return
+
+        # Here you would include the code for processing tidied data
+        pass
 
 if __name__ == "__main__":
-   mani, loc = sys.argv[1:3]
-   print(main(loc, mani))
-
-
+    main()
