@@ -36,7 +36,7 @@ def load_dataframe(path):
             return None
         return df
     except (FileNotFoundError, IsADirectoryError, ValueError) as err:
-        print(f"Error: {path}: {err.strerror}", file=sys.stderr)
+        print(f"Error: {path}: {err}", file=sys.stderr)
         return None
 
 
@@ -45,7 +45,7 @@ def add_slash(string):
     if pd.isna(string):
         return string
     elif '/' not in string:
-        return '{}/{}'.format(string, string)
+        return f'{string}/{string}'
     else:
         return string
     
@@ -54,11 +54,9 @@ def add_slash(string):
 # loc: folder with ndjson files
 # sample: row from the mainfest
 def load_and_diff(sample, loc):
-    print(type(sample))  # Add this line
-    print(sample)        # And this line
 
-    path_format = loc + '/{id}.ndjson'
-    print('Processing {}'.format(sample['icgc_donor_id']))
+    path_format = loc +'/{id}.ndjson'
+    print(f'Processing {sample["icgc_donor_id"]}')
 
     # Load the dataframes
     dfn_raw = load_dataframe(path_format.format(id=sample['control_object_id']))
@@ -93,6 +91,7 @@ def init_argparse():
     parser.add_argument('--manifest', required=True, help='CSV of paired files to be processed, with columns: icgc_donor_id, control_object_id, case_object_id, sex')
     parser.add_argument('--disease', help='Name of the disease (default: Name of --EHD arg)')
     parser.add_argument('--pvals', default=True, type=bool, help='Calculate p-values? (default True)')
+    parser.add_argument('--outdir', default='', help='Output directory for the tidied data and pvals. (default: script running directory)')
     return parser
 
 def main():
@@ -105,17 +104,20 @@ def main():
     # Load and diff the data
     mani = pd.read_csv(args.manifest)
     dfs = mani.apply(lambda row: load_and_diff(row, args.EHD), axis=1).tolist()
+
     dfs = [df for df in dfs if df is not None]
     df = pd.concat(dfs, axis=0)
-    df.to_csv("{disease}_tidy.csv".format(disease=args.disease))
-    print("Tidied df saved to {disease}_tidy.csv".format(disease=args.disease))
+    
+    output_dir = args.outdir if args.outdir else "."
+    tidied_file = os.path.join(output_dir, f"{args.disease}_tidy.csv")
+    df.to_csv(tidied_file)
+    print(f"Tidied df saved to {tidied_file}")
 
-    # Check if we need to calculate p-values
     if args.pvals:
-        # Calculate p-values
         pvals = get_pvals(df)
-        pvals.to_csv("{disease}_pvals.csv".format(disease=args.disease))
-        print("P-values saved to {disease}_pvals.csv".format(disease=args.disease))
+        pvals_file = os.path.join(output_dir, f"{args.disease}_pvals.csv")
+        pvals.to_csv(pvals_file)
+        print(f"P-values saved to {pvals_file}")
         
 
 if __name__ == "__main__":
