@@ -2,9 +2,12 @@
 ### Input: folder containing the ndjson files
 ###        a csv file containing the list of files to be processed
 
-import pandas as pd
 import os
 import argparse
+import numpy as np
+import pandas as pd
+from scipy.stats import wilcoxon
+import sys
 
 # Split the genotype column into two numeric columns
 def process_dataframe(df):
@@ -51,7 +54,10 @@ def add_slash(string):
 # Load the data and subtract the genotype columns
 # loc: folder with ndjson files
 # sample: row from the mainfest
-def load_and_diff(loc, sample):
+def load_and_diff(sample, loc):
+    print(type(sample))  # Add this line
+    print(sample)        # And this line
+
     path_format = loc + '/{id}.ndjson'
     print('Processing {}'.format(sample['icgc_donor_id']))
 
@@ -79,6 +85,21 @@ def load_and_diff(loc, sample):
 
     return diff_df
 
+
+def get_pvals(df) -> pd.DataFrame:
+    # Remove the sample_id column if it exists
+    if 'sample_id' in df.columns:
+        df = df.drop(columns=['sample_id'], axis=1, inplace=True)
+    
+    # Deal with NaNs and 0 cols
+    dfVals = df.fillna(0)
+    dfVals = df.loc[:, (dfVals != 0).any(axis=0)]
+
+    # Get the p-values
+    pvals = wilcoxon(dfVals.iloc[:, 1:], nan_policy='omit', axis = 0)[1]
+    pvals = pd.DataFrame({'pval': pvals}, index=dfVals.columns[1:])
+    return pvals
+
 def init_argparse():
     parser = argparse.ArgumentParser(
         usage="%(prog)s [OPTION] [FILE]...",
@@ -96,33 +117,35 @@ def main():
     args = parser.parse_args()
 
     # Set the disease name if it was not given
-    if args.disease_name is None:
-        args.disease_name = os.path.basename(args.ExpansionHunterData)
-        
+    if args.dis is None:
+        args.dis = os.path.basename(args.EHD)
+
     # Depending on the step, do the appropriate processing
     if args.step == 0:
         # Load and diff the data
         mani = pd.read_csv(args.manifest)
-        
-        dfs = mani.apply(load_and_diff, args=(args.ExpansionHunterData,), axis=1).tolist()
-        dfs = [df for df in dfs if df is not None]
-        
-        df = pd.concat(dfs, axis=0)
-        df.to_csv("{disease}_res.csv".format(disease=args.disease_name))
 
-        # Loop through the manifest and load and diff the data
-        print("Saved to {disease}.csv".format(disease=args.disease_name))
+        dfs = mani.apply(lambda row: load_and_diff(row, args.EHD), axis=1).tolist()
+        dfs = [df for df in dfs if df is not None]
+        df = pd.concat(dfs, axis=0)
+        df.to_csv("{disease}_res.csv".format(disease=args.dis))
+
+        print("Tidied df saved to {disease}.csv".format(disease=args.dis))
     elif args.step == 1:
         # Check if the tidied_data argument was given
-        if args.tidied_data is None:
-            print("Error: the --tidied_data argument is necessary when --step is 1.")
+        if args.tidat is None:
+            print("Error: the --tidat argument is necessary when --step is 1.")
             return
-        if not os.path.exists(args.tidied_data):
-            print(f"Error: {args.tidied_data} does not exist.")
+        if not os.path.exists(args.tidat):
+            print(f"Error: {args.tidat} does not exist.")
             return
+        df = pd.read_csv(args.tidat, index_col=0)
+    
+    # Process the tidied data and save pvals to a csv
+    pvals = get_pvals(df)
+    pvals.to_csv("{disease}_pvals.csv".format(disease=args.dis))
+    print("P-values saved to {disease}_pvals.csv".format(disease=args.dis))
 
-        # Here you would include the code for processing tidied data
-        pass
 
 if __name__ == "__main__":
     main()
