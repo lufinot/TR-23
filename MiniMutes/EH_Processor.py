@@ -3,11 +3,10 @@
 ###        a csv file containing the list of files to be processed
 
 import os
-import argparse
-import numpy as np
-import pandas as pd
-from scipy.stats import wilcoxon
 import sys
+import argparse
+import pandas as pd
+from calc_pvals import get_pvals
 
 # Split the genotype column into two numeric columns
 def process_dataframe(df):
@@ -86,30 +85,14 @@ def load_and_diff(sample, loc):
     return diff_df
 
 
-def get_pvals(df) -> pd.DataFrame:
-    # Remove the sample_id column if it exists
-    if 'sample_id' in df.columns:
-        df = df.drop(columns=['sample_id'], axis=1, inplace=True)
-    
-    # Deal with NaNs and 0 cols
-    dfVals = df.fillna(0)
-    dfVals = df.loc[:, (dfVals != 0).any(axis=0)]
-
-    # Get the p-values
-    pvals = wilcoxon(dfVals.iloc[:, 1:], nan_policy='omit', axis = 0)[1]
-    pvals = pd.DataFrame({'pval': pvals}, index=dfVals.columns[1:])
-    return pvals
-
 def init_argparse():
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [OPTION] [FILE]...",
-        description='Process the EH data.')
+        usage="%(prog)s --EHD <EHD directory> --manifest <manifest file> [other options]]",
+        description='Process Expansion Hunter output reformatted to ndjson files into a tidy DataFrame. Also calculates p-values.')
     parser.add_argument('--EHD', required=True, help='Directory w/ ndjson files')
     parser.add_argument('--manifest', required=True, help='CSV of paired files to be processed, with columns: icgc_donor_id, control_object_id, case_object_id, sex')
-    parser.add_argument('--dis', help='Name of the disease (default: Name of --EHD arg)')
-    parser.add_argument('--step', default=0, type=int, choices=[0, 1], help='Step to process the data from: {0: raw ndjson, 1: tidied data} (default 0)')
-    parser.add_argument('--tidat', help='Location of the tidied data (If step is 1)')
-    
+    parser.add_argument('--disease', help='Name of the disease (default: Name of --EHD arg)')
+    parser.add_argument('--pvals', default=True, type=bool, help='Calculate p-values? (default True)')
     return parser
 
 def main():
@@ -117,35 +100,23 @@ def main():
     args = parser.parse_args()
 
     # Set the disease name if it was not given
-    if args.dis is None:
-        args.dis = os.path.basename(args.EHD)
+    args.disease = args.disease or os.path.basename(args.EHD)
 
-    # Depending on the step, do the appropriate processing
-    if args.step == 0:
-        # Load and diff the data
-        mani = pd.read_csv(args.manifest)
+    # Load and diff the data
+    mani = pd.read_csv(args.manifest)
+    dfs = mani.apply(lambda row: load_and_diff(row, args.EHD), axis=1).tolist()
+    dfs = [df for df in dfs if df is not None]
+    df = pd.concat(dfs, axis=0)
+    df.to_csv("{disease}_tidy.csv".format(disease=args.disease))
+    print("Tidied df saved to {disease}_tidy.csv".format(disease=args.disease))
 
-        dfs = mani.apply(lambda row: load_and_diff(row, args.EHD), axis=1).tolist()
-        dfs = [df for df in dfs if df is not None]
-        df = pd.concat(dfs, axis=0)
-        df.to_csv("{disease}_res.csv".format(disease=args.dis))
-
-        print("Tidied df saved to {disease}.csv".format(disease=args.dis))
-    elif args.step == 1:
-        # Check if the tidied_data argument was given
-        if args.tidat is None:
-            print("Error: the --tidat argument is necessary when --step is 1.")
-            return
-        if not os.path.exists(args.tidat):
-            print(f"Error: {args.tidat} does not exist.")
-            return
-        df = pd.read_csv(args.tidat, index_col=0)
-    
-    # Process the tidied data and save pvals to a csv
-    pvals = get_pvals(df)
-    pvals.to_csv("{disease}_pvals.csv".format(disease=args.dis))
-    print("P-values saved to {disease}_pvals.csv".format(disease=args.dis))
-
+    # Check if we need to calculate p-values
+    if args.pvals:
+        # Calculate p-values
+        pvals = get_pvals(df)
+        pvals.to_csv("{disease}_pvals.csv".format(disease=args.disease))
+        print("P-values saved to {disease}_pvals.csv".format(disease=args.disease))
+        
 
 if __name__ == "__main__":
     main()
