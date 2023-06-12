@@ -4,6 +4,8 @@ from scipy.stats import wilcoxon
 from statsmodels.stats.multitest import multipletests
 import argparse
 import os
+import logging
+import warnings
 
 def get_pvals(df) -> pd.DataFrame:
     # Remove the sample_id column if it exists
@@ -14,8 +16,14 @@ def get_pvals(df) -> pd.DataFrame:
     dfVals = df.fillna(0)
     dfVals = df.loc[:, (dfVals != 0).any(axis=0)]
 
-    # Get the p-values
-    pvals = wilcoxon(dfVals.iloc[:, 1:], nan_policy='omit', axis = 0)[1]
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("once") 
+        pvals = wilcoxon(dfVals.iloc[:, 1:], nan_policy='omit', axis = 0)[1]
+        for warning in w:
+            if str(warning.message) == 'Exact p-value calculation does not work if there are zeros. Switching to normal approximation.':
+                logging.warning('Exact p-value calculation switched to normal approximation due to presence of zeros.')
+            elif str(warning.message) == 'Sample size too small for normal approximation.':
+                logging.warning('Sample size is too small for normal approximation.')
     
     # Apply FDR correction
     rejected, pvals_corrected, _, _ = multipletests(pvals, alpha=0.05, method='fdr_bh')
@@ -34,6 +42,8 @@ def init_argparse():
     return parser
 
 def main(args=None):
+    logging.basicConfig(filename='calc_pvals.log', level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
     parser = init_argparse()
     args = parser.parse_args()
 
