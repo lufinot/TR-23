@@ -7,6 +7,18 @@ import sys
 import argparse
 import pandas as pd
 from calc_pvals import get_pvals
+import logging 
+
+LOG_LEVEL = os.getenv('LOG_LEVEL') or 'info'
+
+log_dict = {'debug':logging.DEBUG, 'info':logging.INFO , 'warning':logging.WARNING, 
+            'error':logging.ERROR, 'critical':logging.CRITICAL}
+
+log_level = log_dict.get(LOG_LEVEL.lower(),logging.INFO)
+
+logging.basicConfig(filename='filename.log', level=log_level,
+                    format='%(asctime)s %(levelname)s: %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 
 # Split the genotype column into two numeric columns
 def process_dataframe(df):
@@ -28,15 +40,15 @@ def load_dataframe(path):
         df = pd.read_json(path, lines=True)
         # Check if 'genotype' column exists
         if 'genotype' not in df.columns:
-            print(f"Error: {path} does not contain a 'genotype' column.", file=sys.stderr)
+            logging.error(f"{path} does not contain a 'genotype' column. ")
             return None
         # Check if DataFrame is empty
         if df.empty:
-            print(f"Error: {path} is empty.", file=sys.stderr)
+            logging.error(f"{path} is empty. ")
             return None
         return df
     except (FileNotFoundError, IsADirectoryError, ValueError) as err:
-        print(f"Error: {path}: {err}", file=sys.stderr)
+        logging.error(f"{err}")
         return None
 
 
@@ -56,7 +68,7 @@ def add_slash(string):
 def load_and_diff(sample, loc):
 
     path_format = loc +'/{id}.ndjson'
-    print(f'Processing {sample["icgc_donor_id"]}')
+    logging.info(f"Loading {sample['icgc_donor_id']}...")
 
     # Load the dataframes
     dfn_raw = load_dataframe(path_format.format(id=sample['control_object_id']))
@@ -64,13 +76,22 @@ def load_and_diff(sample, loc):
 
     # If any dataframe could not be loaded, return None
     if dfn_raw is None or dft_raw is None:
+        logging.warning(f"{sample['icgc_donor_id']} could not be loaded.")
         return None
 
     # Process the dataframes
     dfn = process_dataframe(dfn_raw)
     dft = process_dataframe(dft_raw)
 
-    # Subtract genotype1 and genotype2 columns in both dataframes
+    totNaNs = dfn.isna().any(axis=1).sum() + dft.isna().any(axis=1).sum()
+    # log if more than 30% of the rows have NaN values
+    if totNaNs > 0.3 * (len(dfn)):
+        logging.warning(f"{sample['icgc_donor_id']} has more than 30% missing values.")
+
+    # Subtract genotype1 and genotype2 columns in both dataframes, if different lengths, return None
+    if len(dfn) != len(dft):
+        logging.warning(f"{sample['icgc_donor_id']} has different lengths for control and case.")
+        return None
     diff1 = dfn['genotype1'].subtract(dft['genotype1'])
     diff2 = dfn['genotype2'].subtract(dft['genotype2'])
 

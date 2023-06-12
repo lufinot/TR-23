@@ -1,6 +1,7 @@
 # calc_pvals.py
 import pandas as pd
 from scipy.stats import wilcoxon
+from statsmodels.stats.multitest import multipletests
 import argparse
 import os
 
@@ -15,8 +16,15 @@ def get_pvals(df) -> pd.DataFrame:
 
     # Get the p-values
     pvals = wilcoxon(dfVals.iloc[:, 1:], nan_policy='omit', axis = 0)[1]
-    pvals = pd.DataFrame({'pval': pvals}, index=dfVals.columns[1:])
-    return pvals
+    
+    # Apply FDR correction
+    rejected, pvals_corrected, _, _ = multipletests(pvals, alpha=0.05, method='fdr_bh')
+    
+    pvals_df = pd.DataFrame({'pval': pvals, 'pval_corrected': pvals_corrected, 'rejected': rejected}, index=dfVals.columns[1:])
+    
+    
+    return pvals_df
+
 
 def init_argparse():
     parser = argparse.ArgumentParser(description='Calculate the p-values from tidied data.')
