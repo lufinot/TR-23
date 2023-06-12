@@ -29,6 +29,8 @@ def get_pvals(df) -> pd.DataFrame:
 def init_argparse():
     parser = argparse.ArgumentParser(description='Calculate the p-values from tidied data.')
     parser.add_argument('--tidat', required=True, help='Location of the tidied data')
+    parser.add_argument('--outdir', default='', help='Output directory for the pvals. (default: script running directory)')
+    parser.add_argument('--name', help='Prefix for output file (default same as tidied dat)')
     return parser
 
 def main(args=None):
@@ -39,11 +41,13 @@ def main(args=None):
         print(f"Error: {args.tidat} does not exist.")
         return
     df = pd.read_csv(args.tidat, index_col=0)
-
+    os.makedirs(args.outdir, exist_ok=True)
+    prefix = args.name or os.path.splitext(args.tidat)[0]
+    path = f'{args.outdir}/{prefix}.csv'
     # Process the tidied data and save pvals to a csv
     pvals = get_pvals(df)
-    pvals.to_csv("{prefix}_pvals.csv".format(prefix=os.path.splitext(args.tidat)[0]))
-    print("P-values saved to {prefix}_pvals.csv".format(prefix=os.path.splitext(args.tidat)[0]))
+    pvals.to_csv(path)
+    print(f'P-values saved to {path}')
 
 
 if __name__ == "__main__":
