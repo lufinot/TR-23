@@ -18,7 +18,7 @@ These instructions will help you get a copy of the project up and running on you
 You can install any missing packages using pip:
 
 ```bash
-pip install pandas argparse scipy
+pip install requirements.txt
 ```
 
 ### Usage
@@ -44,8 +44,8 @@ python EH_Processor.py --EHD /path/to/ndjson_files --manifest manifest.csv --dis
 
 ## Authors
 
-- Your Name
-
+- Lucas Finot
+- 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
