@@ -18,7 +18,7 @@ These instructions will help you get a copy of the project up and running on you
 You can install any missing packages using pip:
 
 ```bash
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 ### Usage
