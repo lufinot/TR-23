@@ -62,47 +62,36 @@ def add_slash(string):
         return string
     
     
-# Load the data and subtract the genotype columns
+# Load the case data and format the DataFrame
 # loc: folder with ndjson files
 # sample: row from the mainfest
-def load_and_diff(sample, loc):
-
+def load_and_case(sample, loc):
     path_format = loc +'/{id}.ndjson'
     logging.info(f"Loading {sample['icgc_donor_id']}...")
 
-    # Load the dataframes
-    dfn_raw = load_dataframe(path_format.format(id=sample['control_object_id']))
+    # Load the dataframe
     dft_raw = load_dataframe(path_format.format(id=sample['case_object_id']))
 
-    # If any dataframe could not be loaded, return None
-    if dfn_raw is None or dft_raw is None:
+    # If dataframe could not be loaded, return None
+    if dft_raw is None:
         logging.warning(f"{sample['icgc_donor_id']} could not be loaded.")
         return None
 
-    # Process the dataframes
-    dfn = process_dataframe(dfn_raw)
+    # Process the dataframe
     dft = process_dataframe(dft_raw)
 
-    totNaNs = dfn.isna().any(axis=1).sum() + dft.isna().any(axis=1).sum()
+    totNaNs = dft.isna().any(axis=1).sum()
     # log if more than 30% of the rows have NaN values
-    if totNaNs > 0.3 * (len(dfn)):
+    if totNaNs > 0.3 * len(dft):
         logging.warning(f"{sample['icgc_donor_id']} has more than 30% missing values.")
-
-    # Subtract genotype1 and genotype2 columns in both dataframes, if different lengths, return None
-    if len(dfn) != len(dft):
-        logging.warning(f"{sample['icgc_donor_id']} has different lengths for control and case.")
-        return None
-    diff1 = dfn['genotype1'].subtract(dft['genotype1'])
-    diff2 = dfn['genotype2'].subtract(dft['genotype2'])
 
     # Create a new DataFrame from these Series
     row_names = ['0' + sample['icgc_donor_id'], '1' + sample['icgc_donor_id']]
-    diff_df = pd.DataFrame([diff1, diff2], index = row_names)
-    diff_df.columns = dfn['region']
-    diff_df.insert(0, 'sample_id', sample['icgc_donor_id'])
+    case_df = pd.DataFrame([dft['genotype1'], dft['genotype2']], index = row_names)
+    case_df.columns = dft['region']
+    case_df.insert(0, 'sample_id', sample['icgc_donor_id'])
 
-    return diff_df
-
+    return case_df
 
 def init_argparse():
     parser = argparse.ArgumentParser(
@@ -124,7 +113,7 @@ def main():
 
     # Load and diff the data
     mani = pd.read_csv(args.manifest)
-    dfs = mani.apply(lambda row: load_and_diff(row, args.EHD), axis=1).tolist()
+    dfs = mani.apply(lambda row: load_and_case(row, args.EHD), axis=1).tolist()
 
     dfs = [df for df in dfs if df is not None]
     df = pd.concat(dfs, axis=0)
@@ -134,12 +123,6 @@ def main():
     df.to_csv(tidied_file)
     print(f"Tidied df saved to {tidied_file}")
 
-    if args.pvals:
-        pvals = get_pvals(df)
-        pvals_file = os.path.join(output_dir, f"{args.disease}_pvals.csv")
-        pvals.to_csv(pvals_file)
-        print(f"P-values saved to {pvals_file}")
-        
 
 if __name__ == "__main__":
     main()
