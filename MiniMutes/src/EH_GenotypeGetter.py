@@ -62,41 +62,45 @@ def add_slash(string):
         return string
     
     
-# Load the case data and format the DataFrame
-# loc: folder with ndjson files
-# sample: row from the mainfest
-def load_and_case(sample, loc):
+def load_case_control(sample, loc):
     path_format = loc +'/{id}.ndjson'
     logging.info(f"Loading {sample['icgc_donor_id']}...")
 
-    # Load the dataframe
+    # Load the dataframe for case
     dft_raw = load_dataframe(path_format.format(id=sample['case_object_id']))
 
+    # Load the dataframe for control
+    dfc_raw = load_dataframe(path_format.format(id=sample['control_object_id']))
+
     # If dataframe could not be loaded, return None
-    if dft_raw is None:
+    if dft_raw is None or dfc_raw is None:
         logging.warning(f"{sample['icgc_donor_id']} could not be loaded.")
-        return None
+        return None, None
 
-    # Process the dataframe
+    # Process the dataframe for case and control
     dft = process_dataframe(dft_raw)
+    dfc = process_dataframe(dfc_raw)
 
-    totNaNs = dft.isna().any(axis=1).sum()
+    totNaNs_case = dft.isna().any(axis=1).sum()
+    totNaNs_control = dfc.isna().any(axis=1).sum()
     # log if more than 30% of the rows have NaN values
-    if totNaNs > 0.3 * len(dft):
+    if totNaNs_case > 0.3 * len(dft) or totNaNs_control > 0.3 * len(dfc):
         logging.warning(f"{sample['icgc_donor_id']} has more than 30% missing values.")
 
     # Create a new DataFrame from these Series
     row_names = ['0' + sample['icgc_donor_id'], '1' + sample['icgc_donor_id']]
-    case_df = pd.DataFrame([dft['genotype1'], dft['genotype2']], index = row_names)
-    case_df.columns = dft['region']
+    case_df = pd.DataFrame([dft['genotype1'], dft['genotype2']], index=row_names)
+    control_df = pd.DataFrame([dfc['genotype1'], dfc['genotype2']], index=row_names)
+    case_df.columns, control_df.columns = dft['region'], dfc['region']
     case_df.insert(0, 'sample_id', sample['icgc_donor_id'])
+    control_df.insert(0, 'sample_id', sample['icgc_donor_id'])
 
-    return case_df
+    return case_df, control_df
 
 def init_argparse():
     parser = argparse.ArgumentParser(
         usage="%(prog)s --EHD <EHD directory> --manifest <manifest file> [other options]]",
-        description='Process Expansion Hunter output reformatted to ndjson files into a tidy DataFrame. Also calculates p-values.')
+        description='Process Expansion Hunter output reformatted to ndjson files into a tidy DataFrame of genotypes.')
     parser.add_argument('--EHD', required=True, help='Directory w/ ndjson files')
     parser.add_argument('--manifest', required=True, help='CSV of paired files to be processed, with columns: icgc_donor_id, control_object_id, case_object_id, sex')
     parser.add_argument('--disease', help='Name of the disease (default: Name of --EHD arg)')
@@ -113,16 +117,25 @@ def main():
 
     # Load and diff the data
     mani = pd.read_csv(args.manifest)
-    dfs = mani.apply(lambda row: load_and_case(row, args.EHD), axis=1).tolist()
+    dfs = mani.apply(lambda row: load_case_control(row, args.EHD), axis=1).tolist()
 
-    dfs = [df for df in dfs if df is not None]
-    df = pd.concat(dfs, axis=0)
+    dfs_case = [df[0] for df in dfs if df[0] is not None]
+    dfs_control = [df[1] for df in dfs if df[1] is not None]
+    df_case = pd.concat(dfs_case, axis=0)
+    df_control = pd.concat(dfs_control, axis=0)
     
     output_dir = args.outdir if args.outdir else "."
-    tidied_file = os.path.join(output_dir, f"{args.disease}_tidy.csv")
-    df.to_csv(tidied_file)
-    print(f"Tidied df saved to {tidied_file}")
-
+    tidied_file_case = os.path.join(output_dir, f"{args.disease}_case_tidy.csv")
+    tidied_file_control = os.path.join(output_dir, f"{args.disease}_control_tidy.csv")
+    df_case.to_csv(tidied_file_case)
+    df_control.to_csv(tidied_file_control)
+    print(f"Tidied case df saved to {tidied_file_case}")
+    print(f"Tidied control df saved to {tidied_file_control}")
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
