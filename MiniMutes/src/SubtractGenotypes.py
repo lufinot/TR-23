@@ -20,7 +20,7 @@ def process_dataframe(df_case, df_control):
         logging.error(f"Case and control dataframes have different shapes. Can't perform subtraction.")
         return None
 
-    df_diff = df_case.sub(df_control)
+    df_diff = df_case.subtract(df_control)
 
     return df_diff
 
@@ -46,9 +46,10 @@ def main():
     if df_case is None or df_control is None:
         exit()
 
-    # Process the dataframes
-    df_diff = process_dataframe(df_case, df_control)
+    # Process the dataframes ignoring first column
+    df_diff = process_dataframe(df_case.iloc[:,1:], df_control.iloc[:,1:])
 
+    df_diff.insert(0, 'sample_id', df_case['sample_id'])
     # If dataframe couldn't be processed, exit
     if df_diff is None:
         exit()
