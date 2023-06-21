@@ -92,8 +92,8 @@ def load_and_diff(sample, loc):
     if len(dfn) != len(dft):
         logging.warning(f"{sample['icgc_donor_id']} has different lengths for control and case.")
         return None
-    diff1 = dfn['genotype1'].subtract(dft['genotype1'])
-    diff2 = dfn['genotype2'].subtract(dft['genotype2'])
+    diff1 = dft['genotype1'].subtract(dfn['genotype1'])
+    diff2 = dft['genotype2'].subtract(dfn['genotype2'])
 
     # Create a new DataFrame from these Series
     row_names = ['0' + sample['icgc_donor_id'], '1' + sample['icgc_donor_id']]
