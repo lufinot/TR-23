@@ -55,12 +55,15 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
         icgc_donor_id = row['icgc_donor_id']
         file_path_case = os.path.join(raw_eh_dir, f"{row['case_object_id']}.json")
         file_path_control = os.path.join(raw_eh_dir, f"{row['control_object_id']}.json")  
+
+        logging.info(f'Processing files: {file_path_case}, {file_path_control}')
+
         with open(file_path_case, 'r') as file_case, open(file_path_control, 'r') as file_control:
             try:
                 data_case = orjson.loads(file_case.read())
                 data_control = orjson.loads(file_control.read())
-            except:
-                print(f'Error decoding JSON for files {file_path_case}, {file_path_control}')
+            except Exception as e:
+                logging.error(f'Error decoding JSON for files {file_path_case}, {file_path_control}. Error: {str(e)}')
                 continue
             for locus in set(data_case['LocusResults']):
                 allele_count = data_case['LocusResults'][locus]['AlleleCount']
@@ -143,6 +146,7 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
     diff_df = diff_df.pivot(index='donor_id', columns='refRegion', values='value')
 
     # Save the output dataframes
+    logging.info(f'Saving output files to directory: {output_dir}')
     case_df.to_csv(os.path.join(output_dir, f'{disease_name}_case.csv'))
     control_df.to_csv(os.path.join(output_dir, f'{disease_name}_control.csv'))
     diff_df.to_csv(os.path.join(output_dir, f'{disease_name}_diff.csv'))
