@@ -37,7 +37,7 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
 
     # Load the manifest file
     manifest = pd.read_csv(manifest_path)
-    refRegions = pd.read_csv('../data/other/refRegions.txt', header=None, names=['refRegion'])
+
 
     # Ensure output directory exists
     if not os.path.isdir(output_dir):
