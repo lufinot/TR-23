@@ -22,16 +22,18 @@ def decide_genotype_order(case, control):
     return case, control
 
 def getPairs(case_ci, control_ci, case_genotypes, control_genotypes):
-    if is_wide(case_ci[0]) and is_wide(control_ci[0]):
-        return [case_genotypes[1], control_genotypes[1]], [case_ci[0], control_ci[0]]
-    elif is_wide(case_ci[1]) and is_wide(control_ci[1]):
-        return [case_genotypes[0], control_genotypes[0]], [case_ci[1], control_ci[1]]
-    elif is_wide(case_ci[0]) and is_wide(control_ci[1]):
-        return [case_genotypes[1], control_genotypes[0]], [case_ci[0], control_ci[1]]
-    elif is_wide(case_ci[1]) and is_wide(control_ci[0]):
-        return [case_genotypes[0], control_genotypes[1]], [case_ci[1], control_ci[0]]
+    if is_wide(case_ci[0]):
+        if is_wide(control_ci[1]):
+            return [case_genotypes[1], control_genotypes[0]], [case_ci[0], control_ci[1]]
+        else:
+            return [case_genotypes[1], control_genotypes[1]], [case_ci[0], control_ci[0]]
     else:
-        return None, None
+        if is_wide(control_ci[0]):
+            return [case_genotypes[0], control_genotypes[1]], [case_ci[1], control_ci[0]]
+        else:
+            return [case_genotypes[0], control_genotypes[0]], [case_ci[1], control_ci[1]]
+        
+        
 
 def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir):
 
@@ -84,7 +86,7 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
                     if allele_count == 1:
                         if is_wide(case_ci) or is_wide(control_ci):
                             df_tracking.append({'icgc_donor_id': icgc_donor_id, 
-                                                'locus': locus, 
+                                                'refRegion': refRegion,
                                                 'motif': case.get('RepeatUnit'),
                                                 'control_ci': control_ci, 
                                                 'case_ci': case_ci})
@@ -100,6 +102,16 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
                         control_genotypes = control.get('Genotype')
                         case_genotypes = list(map(int, case_genotypes.split('/')))
                         control_genotypes = list(map(int, control_genotypes.split('/')))
+                        # make any genotypes witha  wide confidence interval nan
+                        if is_wide(case_ci[0]):
+                            case_genotypes[0] = np.nan
+                        if is_wide(case_ci[1]):
+                            case_genotypes[1] = np.nan
+                        if is_wide(control_ci[0]):
+                            control_genotypes[0] = np.nan
+                        if is_wide(control_ci[1]):
+                            control_genotypes[1] = np.nan
+
                         
                         tot_wide = np.isnan(case_genotypes).sum() + np.isnan(control_genotypes).sum()
 
@@ -116,12 +128,12 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
                         # if 3 out of 4 values are nan, skip
                         if tot_wide >= 3 or (is_wide(case_ci[0]) and is_wide(case_ci[1])) or (is_wide(control_ci[0]) and is_wide(control_ci[1])):
                             df_tracking.append({'icgc_donor_id': icgc_donor_id, 
-                                                'locus': locus, 
+                                                'refRegion': refRegion, 
                                                 'motif': case.get('RepeatUnit'),
                                                 'control_ci': control_ci[0], 
                                                 'case_ci': case_ci[0]})
                             df_tracking.append({'icgc_donor_id': icgc_donor_id, 
-                                                'locus': locus, 
+                                                'refRegion': refRegion, 
                                                 'motif': case.get('RepeatUnit'),
                                                 'control_ci': control_ci[1], 
                                                 'case_ci': case_ci[1]})
@@ -132,7 +144,7 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
                         control_df.append({'donor_id': icgc_donor_id + '_0', 'refRegion': refRegion, 'value': goodPair[1]})
                         diff_df.append({'donor_id': icgc_donor_id + '_0', 'refRegion': refRegion, 'value': goodPair[0] - goodPair[1]})
                         df_tracking.append({'icgc_donor_id': icgc_donor_id, 
-                                            'locus': locus, 
+                                            'refRegion': refRegion,
                                             'motif': case.get('RepeatUnit'),
                                             'control_ci': badCi[1], 
                                             'case_ci': badCi[0]})
