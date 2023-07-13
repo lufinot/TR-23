@@ -57,7 +57,10 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
         file_path_control = os.path.join(raw_eh_dir, f"{row['control_object_id']}.json")  
 
         logging.info(f'Processing files: {file_path_case}, {file_path_control}')
-
+        # test if the files exist
+        if not os.path.isfile(file_path_case) or not os.path.isfile(file_path_control):
+            logging.error(f'One or more files do not exist: {file_path_case}, {file_path_control}')
+            continue
         with open(file_path_case, 'r') as file_case, open(file_path_control, 'r') as file_control:
             try:
                 data_case = orjson.loads(file_case.read())
