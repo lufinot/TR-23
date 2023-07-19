@@ -3,11 +3,65 @@ import numpy as np
 from scipy.stats import wilcoxon
 from statsmodels.stats.multitest import multipletests
 from dbscan1d.core import DBSCAN1D
+import pyranges as pr
 
 import argparse
 import os
 import logging
 import warnings
+
+
+
+def split_to_bed(df: pd.DataFrame, colname) -> pd.DataFrame:
+    """ 
+    Splits the given column into 3 columns with titles Chromosome, Start, End
+    """
+    df['Chromosome'], rest = df[colname].str.split(':', 1).str
+    df['Start'], df['End'] = rest.str.split('-', 1).str
+    return df
+
+
+def get_COSMIC_regions(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Get COSMIC regions from the dataframe.
+    Args:
+        df: Dataframe with locations of mutations.
+    Returns:
+        df: Dataframe with added COSMIC annotations
+    """
+
+
+    df_bed_format = split_to_bed(df, 'ReferenceRegion')
+
+    # Convert pandas DataFrames to PyRanges objects
+    pyranges_df = pr.PyRanges(df_bed_format)
+
+    # Load the COSMIC data
+    cosmic_data = pd.read_csv('data/COSMIC.csv')
+    pyranges_cosmic = pr.PyRanges(cosmic_data)
+
+    # Join the data with COSMIC regions using a left join
+    joined_pyranges = pyranges_df.join(pyranges_cosmic, how='left')
+    joined_df = joined_pyranges.df
+
+    # Create a 'COSMIC_loc' column combining 'Start' and 'End'
+    joined_df['COSMIC_loc'] = joined_df['Start_b'].astype(str) + '-' + joined_df['End_b'].astype(str)
+
+    # Drop unnecessary columns
+    columns_to_drop = ['Start', 'End', 'Start_b', 'End_b', 'Chromosome']
+    joined_df.drop(columns=columns_to_drop, inplace=True)
+
+    # Rename columns for clarity
+    columns_to_rename = {
+        'Tumour Types(Somatic)': 'COSMIC_TumorType', 
+        'Tissue Type': 'COSMIC_TissueType',
+        'Gene Symbol': 'COSMIC_GeneSymbol', 
+        'Tier': 'COSMIC_Tier'
+    }
+    joined_df.rename(columns=columns_to_rename, inplace=True)
+
+    return joined_df
+
 
 def calculate_wilcoxon_pvals(df: pd.DataFrame) -> np.ndarray:
     """
@@ -65,29 +119,30 @@ def cluster_features(df: pd.DataFrame) -> pd.DataFrame:
     Args:
         df: Dataframe with rows as samples and cols as regions.
     Returns:
-        cluster_df: With Cols ['num_clusters', 'cluster_means', 'cluster_sds', 'out4', 'out6']
+        cluster_df: With Cols ['num_clusters', 'cluster_means', 'cluster_sds', 'out3', 'out5']
     """
     result = df.apply(lambda x: cluster_and_outliers(x), axis=0).T
-    result.columns = ['num_clusters', 'cluster_means', 'cluster_sds', 'out4', 'out6']
+    result.columns = ['num_clusters', 'cluster_means', 'cluster_sds', 'out3', 'out5']
     return result
-
-
-
-   
-
 
 def cluster_and_outliers(x: pd.Series) -> list:
     x = x.dropna()
+    n = len(x)
+    n = max(int(np.sqrt(n)) * 2 / 3, 4)
     sx = x.div(x.std())
     sx = sx.values
-    db = DBSCAN1D(eps=0.3, min_samples=20)
-    labels = db.fit_predict(sx)
+    db = DBSCAN1D(eps=2, min_samples=n)
+    labels = db.fit_predict(x.values)
 
     outliers = sx[labels == -1]
 
-    # get counts of outliers above 4 and 6 sd
-    out4 = len(outliers[outliers > 4])
-    out6 = len(outliers[outliers > 6])
+    # get counts of outliers above 3 and 5 sd
+    out3 = len(outliers[outliers > 3])
+    out5 = len(outliers[outliers > 5])
+
+    # if no clusters, return 
+    if len(np.unique(labels)) == 1:
+        return [0, [], [], out3, out5]
 
     # get mean and sd of clusters
     means = []
@@ -103,17 +158,17 @@ def cluster_and_outliers(x: pd.Series) -> list:
     })
     df['abs_means'] = df['means'].abs()
     df = df.sort_values('abs_means')
-    df = df.iloc[1:, :]
+    if df.iloc[0]['abs_means'] < 3:
+        df = df.iloc[1:, :]
  
     means = df['means'].values.tolist()  # Convert np.array to list
     sds = df['sds'].values.tolist()  # Convert np.array to list
 
-    return [len(means), means, sds, out4, out6]  # Return a list instead of a tuple
+    return [len(means), means, sds, out3, out5]  # Return a list instead of a tuple
 
     
 
-
-def process_and_extract_features(input_df_path: str) -> pd.DataFrame:
+def process_and_extract_features(df) -> pd.DataFrame:
     """
     Function to call other functions to process the dataframe and extract features.
     Args:
@@ -124,35 +179,37 @@ def process_and_extract_features(input_df_path: str) -> pd.DataFrame:
     # Read in difference dataframe
     df = process_df(df)
 
-    features_df = args.feats or pd.DataFrame({'ReferenceRegion': df.columns})
-
-    features_df = add_motif_info(features_df)
+    features_df = pd.DataFrame({'ReferenceRegion': df.columns})
 
     features_df['wilcox_pvals'] = calculate_wilcoxon_pvals(df)
 
-    features_df = features_df.concat([features_df, cluster_features(df)], axis=1)
-
+    clusts = cluster_features(df)
+    clusts = clusts.reset_index().rename(columns={'index': 'ReferenceRegion'})
+    features_df = features_df.merge(clusts, how = 'left', on='ReferenceRegion')
 
     # get normalized non-zero proportion
-    features_df['prop_nonzero'] = df.astype(bool).sum(axis=0)/(df.shape[0]+(2*np.sqrt(df.shape[0])))
+    props = df.astype(bool).sum(axis=0)/(df.shape[0]+(2*np.sqrt(df.shape[0])))
+    features_df['prop_nonzero'] = props.values
 
     # get standard deviation
-    features_df['std'] = df.std(axis=0)
+    features_df['std'] = df.std().values
+
+    features_df = add_motif_info(features_df)
+    features_df = get_COSMIC_regions(features_df)
 
     return features_df
 
 
 def init_argparse():
-    parser = argparse.ArgumentParser(description='Calculate the p-values from tidied data.')
+    parser = argparse.ArgumentParser(description='Create features from tidied data.')
     parser.add_argument('--tidat', required=True, help='Location of the tidied data')
-    parser.add_argument('--outdir', default='', help='Output directory for the pvals. (default: script running directory)')
+    parser.add_argument('--outdir', default='', help='Output directory for the feats. (default: script running directory)')
     parser.add_argument('--name', help='Prefix for output file (default same as tidied dat)')
-    parser.add_argument('--feats', help='Location of the features file (default: creates new features)')
     return parser
 
 
 def main(args=None):
-    logging.basicConfig(filename='calc_pvals.log', level=logging.INFO,
+    logging.basicConfig(filename='calc_feats.log', level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
     parser = init_argparse()
     args = parser.parse_args()
@@ -162,13 +219,13 @@ def main(args=None):
         return
 
     df = pd.read_csv(args.tidat, index_col=0)
-    pvals_df = process_and_get_pvals(df)
+    feats_df = process_and_extract_features(df)
     output_name = args.name if args.name else os.path.basename(args.tidat).split('.')[0]
-    output_path = os.path.join(args.outdir, f"{output_name}_pvals.csv")
+    output_path = os.path.join(args.outdir, f"{output_name}_feats.csv")
 
-    pvals_df.to_csv(output_path, index=False)
+    feats_df.to_csv(output_path, index=False)
 
-    print(f"P-values saved to {output_path}")
+    print(f"Feats saved to {output_path}")
 
 
 if __name__ == "__main__":
