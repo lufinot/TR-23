@@ -4,22 +4,37 @@ import orjson
 import os
 import numpy as np
 import logging
+from datetime import datetime
+import logging.handlers
+import queue
 
 from multiprocessing import Pool, cpu_count
 from functools import partial
 
 MAX_WIDTH = 5
 
+
+
+
 LOG_LEVEL = os.getenv('LOG_LEVEL') or 'info'
+log_dict = {'debug': logging.DEBUG, 'info': logging.INFO, 'warning': logging.WARNING, 
+            'error': logging.ERROR, 'critical': logging.CRITICAL}
+log_level = log_dict.get(LOG_LEVEL.lower(), logging.INFO)
 
-log_dict = {'debug':logging.DEBUG, 'info':logging.INFO , 'warning':logging.WARNING, 
-            'error':logging.ERROR, 'critical':logging.CRITICAL}
+slurm_job_id = os.getenv('SLURM_JOBID')
+if not slurm_job_id:
+    slurm_job_id = datetime.now().strftime('%Y%m%d_%H%M')
 
-log_level = log_dict.get(LOG_LEVEL.lower(),logging.INFO)
 
-logging.basicConfig(filename='filename.log', level=log_level,
+log_dir = 'ExpansionCookerLogs'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+logging.basicConfig(filename=os.path.join(log_dir, f'{slurm_job_id}_ExpansionCooker.log'), 
+                    level=log_level,
                     format='%(asctime)s %(levelname)s: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
+
 
 def is_wide(ci):
     ci = list(map(int, ci.split('-')))
@@ -153,7 +168,7 @@ def process_donor(donor, raw_eh_dir):
         for locus in set(data_case['LocusResults']):
             process_locus(icgc_donor_id, data_case['LocusResults'][locus], data_control['LocusResults'][locus], local_case_df, local_control_df, local_diff_df, local_df_tracking)
 
-
+    logging.info(f'Donor {icgc_donor_id} processed successfully.')
     return local_case_df, local_control_df, local_diff_df, local_df_tracking, icgc_donor_id
 
 
@@ -164,12 +179,12 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
     # Ensure output directory exists
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
+    
 
-
-    # Use multiprocessing to process each donor's files
     with Pool(processes=cpu_count()) as pool:
         func = partial(process_donor, raw_eh_dir=raw_eh_dir)
         results = pool.map(func, manifest.to_dict('records'))
+
 
     # Aggregate results
     case_df_list, control_df_list, diff_df_list, df_tracking_list, donor_ids = zip(*results)
@@ -203,3 +218,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     _, _, _, _ = extract_genotypes_diffs(args.manifest, args.disease, args.raw_eh, args.output)
+  
