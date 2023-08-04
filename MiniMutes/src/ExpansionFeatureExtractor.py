@@ -29,8 +29,6 @@ def get_COSMIC_regions(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         df: Dataframe with added COSMIC annotations
     """
-
-
     df_bed_format = split_to_bed(df, 'ReferenceRegion')
 
     # Convert pandas DataFrames to PyRanges objects
@@ -158,8 +156,8 @@ def cluster_and_outliers(x: pd.Series) -> list:
     })
     df['abs_means'] = df['means'].abs()
     df = df.sort_values('abs_means')
-    if df.iloc[0]['abs_means'] < 3:
-        df = df.iloc[1:, :]
+    # if df.iloc[0]['abs_means'] < 3:
+    #     df = df.iloc[1:, :]
  
     means = df['means'].values.tolist()  # Convert np.array to list
     sds = df['sds'].values.tolist()  # Convert np.array to list
@@ -187,8 +185,8 @@ def process_and_extract_features(df) -> pd.DataFrame:
     clusts = clusts.reset_index().rename(columns={'index': 'ReferenceRegion'})
     features_df = features_df.merge(clusts, how = 'left', on='ReferenceRegion')
 
-    # get normalized non-zero proportion
-    props = df.astype(bool).sum(axis=0)/(df.shape[0]+(2*np.sqrt(df.shape[0])))
+    # get non-zero proportion, penalizing for small sample size
+    props = df.astype(bool).sum(axis=0)/(df.shape[0]+(2*np.sqrt(df.shape[0])) + 3)
     features_df['prop_nonzero'] = props.values
 
     # get standard deviation
@@ -201,10 +199,10 @@ def process_and_extract_features(df) -> pd.DataFrame:
 
 
 def init_argparse():
-    parser = argparse.ArgumentParser(description='Create features from tidied data.')
-    parser.add_argument('--tidat', required=True, help='Location of the tidied data')
-    parser.add_argument('--outdir', default='', help='Output directory for the feats. (default: script running directory)')
+    parser = argparse.ArgumentParser(description='Create features from ExpansionCooker output.')
+    parser.add_argument('--input', required=True, help='Location of the EC output')
     parser.add_argument('--name', help='Prefix for output file (default same as tidied dat)')
+    parser.add_argument('--outdir', default='', help='Output directory for the features. (default: script running directory)')
     return parser
 
 
@@ -214,13 +212,13 @@ def main(args=None):
     parser = init_argparse()
     args = parser.parse_args()
     
-    if not os.path.exists(args.tidat):
-        print(f"Error: {args.tidat} does not exist.")
+    if not os.path.exists(args.input_dir):
+        print(f"Error: {args.input_dir} does not exist.")
         return
 
-    df = pd.read_csv(args.tidat, index_col=0)
+    df = pd.read_csv(args.input_dir, index_col=0)
     feats_df = process_and_extract_features(df)
-    output_name = args.name if args.name else os.path.basename(args.tidat).split('.')[0]
+    output_name = args.name or os.path.basename(args.input_dir).split('.')[0]
     output_path = os.path.join(args.outdir, f"{output_name}_feats.csv")
 
     feats_df.to_csv(output_path, index=False)
