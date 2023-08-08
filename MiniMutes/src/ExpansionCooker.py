@@ -23,16 +23,16 @@ log_dict = {'debug': logging.DEBUG, 'info': logging.INFO, 'warning': logging.WAR
             'error': logging.ERROR, 'critical': logging.CRITICAL}
 log_level = log_dict.get(LOG_LEVEL.lower(), logging.INFO)
 
-slurm_job_id = os.getenv('SLURM_JOBID')
-if not slurm_job_id:
-    slurm_job_id = datetime.now().strftime('%Y%m%d_%H%M')
+dis_id = os.getenv('DISEASE')
+if not dis_id:
+    dis_id = datetime.now().strftime('%Y%m%d_%H%M')
 
 
 log_dir = 'ExpansionCookerLogs'
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
-logging.basicConfig(filename=os.path.join(log_dir, f'{slurm_job_id}_ExpansionCooker.log'), 
+logging.basicConfig(filename=os.path.join(log_dir, f'{dis_id}_ExpansionCooker.log'), 
                     level=log_level,
                     format='%(asctime)s %(levelname)s: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
