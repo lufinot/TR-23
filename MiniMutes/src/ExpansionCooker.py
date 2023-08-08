@@ -182,6 +182,7 @@ class GenotypeChecker:
 
         # Calcualte proportion of reads below genotype that belong to gneotype being removed
         b = max(above) if len(above) > 0 else genotype
+        b += 0.01
         r = genotype / b
         prop = 1 - (r / (r+1))
 
