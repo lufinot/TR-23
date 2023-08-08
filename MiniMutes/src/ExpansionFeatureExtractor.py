@@ -1,3 +1,4 @@
+from datetime import datetime
 import pandas as pd
 import numpy as np
 from scipy.stats import wilcoxon
@@ -11,13 +12,15 @@ import logging
 import warnings
 
 
-
 def split_to_bed(df: pd.DataFrame, colname) -> pd.DataFrame:
     """ 
     Splits the given column into 3 columns with titles Chromosome, Start, End
     """
-    df['Chromosome'], rest = df[colname].str.split(':', 1).str
-    df['Start'], df['End'] = rest.str.split('-', 1).str
+    split_data = df[colname].str.split(pat=':', n=1, expand=True)
+    df['Chromosome'] = split_data[0]
+    start_end_data = split_data[1].str.split(pat='-', n=1, expand=True)
+    df['Start'] = start_end_data[0]
+    df['End'] = start_end_data[1]
     return df
 
 
@@ -165,66 +168,83 @@ def cluster_and_outliers(x: pd.Series) -> list:
     return [len(means), means, sds, out3, out5]  # Return a list instead of a tuple
 
     
-
 def process_and_extract_features(df) -> pd.DataFrame:
-    """
-    Function to call other functions to process the dataframe and extract features.
-    Args:
-        input_df_path: Path to the dataframe with rows as samples and cols as regions.
-    Returns:
-        features_df: Dataframe with loci as rows, with features as cols.
-    """
-    # Read in difference dataframe
+    logging.info("Processing and extracting features...")
+    
     df = process_df(df)
+    logging.info("Processed dataframe.")
 
     features_df = pd.DataFrame({'ReferenceRegion': df.columns})
 
     features_df['wilcox_pvals'] = calculate_wilcoxon_pvals(df)
+    logging.info("Calculated Wilcoxon p-values.")
 
     clusts = cluster_features(df)
     clusts = clusts.reset_index().rename(columns={'index': 'ReferenceRegion'})
     features_df = features_df.merge(clusts, how = 'left', on='ReferenceRegion')
+    logging.info("Extracted cluster features.")
 
-    # get non-zero proportion, penalizing for small sample size
     props = df.astype(bool).sum(axis=0)/(df.shape[0]+(2*np.sqrt(df.shape[0])) + 3)
     features_df['prop_nonzero'] = props.values
+    logging.info("Calculated proportion of non-zero values.")
 
-    # get standard deviation
     features_df['std'] = df.std().values
+    logging.info("Calculated standard deviation.")
 
     features_df = add_motif_info(features_df)
+    logging.info("Added motif information.")
+
     features_df = get_COSMIC_regions(features_df)
+    logging.info("Added COSMIC regions.")
 
     return features_df
+
+def process_features(input_df: pd.DataFrame, name: str, outdir: str) -> None:
+
+    feats_df = process_and_extract_features(input_df)
+
+    output_path = os.path.join(outdir, f"{name}_feats.csv")
+    feats_df.to_csv(output_path, index=False)
+    logging.info(f"Feats saved to {output_path}")
 
 
 def init_argparse():
     parser = argparse.ArgumentParser(description='Create features from ExpansionCooker output.')
-    parser.add_argument('--input', required=True, help='Location of the EC output')
-    parser.add_argument('--name', help='Prefix for output file (default same as tidied dat)')
-    parser.add_argument('--outdir', default='', help='Output directory for the features. (default: script running directory)')
+    parser.add_argument('input', metavar='Diff_File', type=str, help='Location of the Expansion Cooker difference file')
+    parser.add_argument('--name', '-n', help='Prefix for output file (default same as input file)')
+    parser.add_argument('--outdir', '-o', default='', help='Output directory for the features. (default: script running directory)')
     return parser
 
 
-def main(args=None):
-    logging.basicConfig(filename='calc_feats.log', level=logging.INFO,
-                        format='%(asctime)s - %(levelname)s - %(message)s')
+def main():
+    LOG_LEVEL = os.getenv('LOG_LEVEL') or 'info'
+    log_dict = {'debug': logging.DEBUG, 'info': logging.INFO, 'warning': logging.WARNING, 
+                'error': logging.ERROR, 'critical': logging.CRITICAL}
+    log_level = log_dict.get(LOG_LEVEL.lower(), logging.INFO)
+
+    slurm_job_id = os.getenv('SLURM_JOBID')
+    if not slurm_job_id:
+        slurm_job_id = datetime.now().strftime('%Y%m%d_%H%M')
+
+    log_dir = 'ExpansionCookerLogs'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    logging.basicConfig(filename=os.path.join(log_dir, f'{slurm_job_id}_FeatureExtractor.log'), 
+                        level=log_level,
+                        format='%(asctime)s %(levelname)s: %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S')
+    
     parser = init_argparse()
     args = parser.parse_args()
-    
-    if not os.path.exists(args.input_dir):
-        print(f"Error: {args.input_dir} does not exist.")
+
+    if not os.path.exists(args.input):
+        logging.error(f"{args.input} does not exist.")
         return
 
-    df = pd.read_csv(args.input_dir, index_col=0)
-    feats_df = process_and_extract_features(df)
-    output_name = args.name or os.path.basename(args.input_dir).split('.')[0]
-    output_path = os.path.join(args.outdir, f"{output_name}_feats.csv")
-
-    feats_df.to_csv(output_path, index=False)
-
-    print(f"Feats saved to {output_path}")
-
-
-if __name__ == "__main__":
+    df = pd.read_csv(args.input, index_col=0)
+    name = args.name or os.path.basename(args.input).split('.')[0]
+    process_features(df, name, args.outdir)
+ 
+if __name__ == '__main__':
     main()
