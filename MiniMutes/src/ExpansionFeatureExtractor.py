@@ -12,6 +12,9 @@ import logging
 import warnings
 
 
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
 def split_to_bed(df: pd.DataFrame, colname) -> pd.DataFrame:
     """ 
     Splits the given column into 3 columns with titles Chromosome, Start, End
@@ -38,7 +41,8 @@ def get_COSMIC_regions(df: pd.DataFrame) -> pd.DataFrame:
     pyranges_df = pr.PyRanges(df_bed_format)
 
     # Load the COSMIC data
-    cosmic_data = pd.read_csv('data/COSMIC.csv')
+    path = os.path.join(script_dir, 'refFiles', 'COSMIC.csv')
+    cosmic_data = pd.read_csv(path)
     pyranges_cosmic = pr.PyRanges(cosmic_data)
 
     # Join the data with COSMIC regions using a left join
@@ -99,7 +103,6 @@ def process_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# Need to add motif extraction to GenotypeGetter & Remove this
 def add_motif_info(df: pd.DataFrame) -> pd.DataFrame:
     """ 
     Add motif information to the dataframe, from the locus_structures.csv file.
@@ -108,7 +111,8 @@ def add_motif_info(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         df: Dataframe with motif information added.
     """
-    loc_to_motif = pd.read_csv('data/other/locus_structures.csv')
+    path = os.path.join(script_dir, 'refFiles', 'locus_structures.csv')
+    loc_to_motif = pd.read_csv(path)
     loc_to_motif['ReferenceRegion'] = loc_to_motif['ReferenceRegion'].str.lstrip('chr')
     df = df.merge(loc_to_motif[['ReferenceRegion', 'LocusStructure']], on='ReferenceRegion', how='left')
     return df
@@ -129,6 +133,8 @@ def cluster_features(df: pd.DataFrame) -> pd.DataFrame:
 def cluster_and_outliers(x: pd.Series) -> list:
     x = x.dropna()
     n = len(x)
+
+    # min samples is 2/3 of sqrt(num samples) or 4, whichever is larger
     n = max(int(np.sqrt(n)) * 2 / 3, 4)
     sx = x.div(x.std())
     sx = sx.values
@@ -169,12 +175,12 @@ def cluster_and_outliers(x: pd.Series) -> list:
 
     
 def process_and_extract_features(df) -> pd.DataFrame:
-    logging.info("Processing and extracting features...")
+    logging.debug("Processing and extracting features...")
     
     df = process_df(df)
-    logging.info("Processed dataframe.")
 
     features_df = pd.DataFrame({'ReferenceRegion': df.columns})
+
 
     features_df['wilcox_pvals'] = calculate_wilcoxon_pvals(df)
     logging.info("Calculated Wilcoxon p-values.")
@@ -186,16 +192,20 @@ def process_and_extract_features(df) -> pd.DataFrame:
 
     props = df.astype(bool).sum(axis=0)/(df.shape[0]+(2*np.sqrt(df.shape[0])) + 3)
     features_df['prop_nonzero'] = props.values
-    logging.info("Calculated proportion of non-zero values.")
+
+    # count number of non-null values
+    num = df.shape[0]
+    features_df['counts'] = num - df.isnull().sum(axis=0).values
+    logging.debug("Calculated proportion of non-zero values.")
 
     features_df['std'] = df.std().values
-    logging.info("Calculated standard deviation.")
+    logging.debug("Calculated standard deviation.")
 
     features_df = add_motif_info(features_df)
-    logging.info("Added motif information.")
+    logging.debug("Added motif information.")
 
     features_df = get_COSMIC_regions(features_df)
-    logging.info("Added COSMIC regions.")
+    logging.debug("Added COSMIC regions.")
 
     return features_df
 
