@@ -5,37 +5,43 @@ import numpy as np
 import seaborn as sns
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+import os
 
+
+# Locations of the data folders
+diff_folder = os.getenv('DIFF_FOLDER') or "../data/CookerOut/"
+genotypes_folder = os.getenv('GENO_FOLDER') or "../data/CookerOut/"
+
+
+def load_genotypes(cols, disease):
+    case_path = os.path.join(genotypes_folder, f'{disease}_case.csv')
+    control_path = os.path.join(genotypes_folder, f'{disease}_control.csv')
+    case = pd.read_csv(case_path, usecols=[cols])
+    control = pd.read_csv(control_path, usecols=[cols])
+    return case, control
 
 ### GENOTYPE GRAPHING FUNCTIONS ###
-def graphGenotypes(loc, cancer):
-    case = pd.read_csv(f'data/genotypes/{cancer}_case_tidy.csv', usecols=[loc])
-    control = pd.read_csv(f'data/genotypes/{cancer}_control_tidy.csv', usecols=[loc])
 
-    #graph the case and control genotypes on the same hist
-    plt.hist(case[loc], bins=100, alpha=0.5, label='case', color='red')
-    plt.hist(control[loc], bins=100, alpha=0.5, label='control', color='blue')
-    plt.title(f'{cancer} ; {loc} Distribution')
-    plt.xlabel('Genotype')
-    plt.ylabel('Frequency')
-    plt.legend(loc='upper right')
-    
+def graph_genotypes(locus, disease):
+    """
+    Graph the genotypes of a single locus for a single disease.
+    """
+    fig, ax = plt.subplots(figsize=(10, 6))
+    case, control = load_genotypes(locus, disease)
+    graph_genotypes_helper(case, control, locus, ax)
     plt.show()
 
 
-def graphGenotypesLociHelper(loc, cancer, ax):
-    case = pd.read_csv(f'data/genotypes/{cancer}_case_tidy.csv', usecols=[loc])
-    control = pd.read_csv(f'data/genotypes/{cancer}_control_tidy.csv', usecols=[loc])
-
-    #graph the case and control genotypes on the same hist
-    ax.hist(case[loc], bins=100, alpha=0.5, label='case', color='red')
-    ax.hist(control[loc], bins=100, alpha=0.5, label='control', color='blue')
-    ax.set_title(f'{loc} Distribution')
+def graph_genotypes_helper(case, control, name, ax):
+    ax.hist(case, bins=100, alpha=0.5, label='case', color='red')
+    ax.hist(control, bins=100, alpha=0.5, label='control', color='blue')
+    ax.set_title(f'{name} Distribution')
     ax.set_xlabel('Genotype')
     ax.set_ylabel('Frequency')
     ax.legend(loc='upper right')
 
-def load_graphGenotypesLoci(loci, cancer):
+
+def load_graphGenotypesLoci(loci, disease):
     num_loci = len(loci)
     num_cols = 4
     num_rows = math.ceil(num_loci / num_cols)
@@ -45,9 +51,9 @@ def load_graphGenotypesLoci(loci, cancer):
 
     for idx, loc in enumerate(loci):
         ax = axs[idx]
-        graphGenotypesLociHelper(loc, cancer, ax)
+        graph_genotypes_helper(loc, disease, ax)
 
-    plt.title(f'{cancer} Distribution for {num_loci} Loci')
+    plt.title(f'{disease} Distribution for {num_loci} Loci')
     plt.tight_layout()  # To prevent overlap of subplots
     plt.show()
 
@@ -96,7 +102,7 @@ def calculate_data(loci, case_df, control_df):
 
     return data_dict, max_diff
 
-def plot_data(data_dict, max_diff, num_cols, cancer, motifs, sample_case, sample_control):
+def plot_data(data_dict, max_diff, num_cols, disease, motifs, sample_case, sample_control):
     num_loci = len(data_dict.keys())
     num_rows = np.ceil(num_loci / num_cols).astype(int)
     
@@ -142,18 +148,23 @@ def plot_data(data_dict, max_diff, num_cols, cancer, motifs, sample_case, sample
 
         axs[i].set_xlabel('Repeat Length')
 
-    plt.suptitle(f'Genotypes of {cancer} Across Loci')
+    plt.suptitle(f'Genotypes of {disease} Across Loci')
     plt.tight_layout(rect=[0, 0.03, 1, 0.97])
     plt.show()
 
-def graphLociGenotypes(loci, case_df, control_df, cancer, sample=None, num_cols=4):
+def graphLociGenotypes(loci, disease, case_df=None, control_df=None, sample=None, num_cols=4):
     motifs = get_motifs(loci)
 
+    case_df = case_df or load_genotypes(loci.append('sample_id'), disease)
     sample_cases = case_df[case_df['sample_id'] == sample] if sample else None
     sample_controls = control_df[control_df['sample_id'] == sample] if sample else None
 
     data_dict, max_diff = calculate_data(loci, case_df, control_df)
-    plot_data(data_dict, max_diff, num_cols, cancer, motifs, sample_cases, sample_controls)
+    plot_data(data_dict, max_diff, num_cols, disease, motifs, sample_cases, sample_controls)
+
+# def _graph_multi_genotypes(title, subvalues, case_df, control_df, sample=None, num_cols=4):
+
+
 
 def get_motifs(loci):
     df = pd.read_csv('data/other/locus_structures.csv')
@@ -166,17 +177,16 @@ def get_motifs(loci):
     return dict(zip(df['ReferenceRegion'], df['LocusStructure']))
 
 
-
-def graphCancersGenotypes(locus, cancers):
+def graphdiseasesGenotypes(locus, diseases):
     """
-    Plots the genotypes of a single locus for each cancer type.
+    Plots the genotypes of a single locus for each disease type.
     args:
         locus: the locus to plot
-        cancers: a list of cancer types to plot
+        diseases: a list of disease types to plot
     """
-    num_cancers = len(cancers)
+    num_diseases = len(diseases)
     num_cols = 4
-    num_rows = np.ceil(num_cancers / num_cols).astype(int)
+    num_rows = np.ceil(num_diseases / num_cols).astype(int)
 
     fig, axs = plt.subplots(num_rows, num_cols, figsize=(15, num_rows*5))  # Adjust the figure size as per your requirement
     axs = axs.ravel()  # flatten the array of axes
@@ -185,10 +195,9 @@ def graphCancersGenotypes(locus, cancers):
     plt.subplots_adjust(wspace=0.3, hspace=0.3)
     plt.subplots_adjust(top=0.95)  # adjust top margin
 
-    for i, cancer in enumerate(cancers):
-        # Read in the case and control data for each cancer
-        case_df = pd.read_csv(f'data/genotypes/{cancer}_case_tidy.csv', usecols=[locus], index_col=False)
-        control_df = pd.read_csv(f'data/genotypes/{cancer}_control_tidy.csv', usecols=[locus], index_col=False)
+    for i, disease in enumerate(diseases):
+        # Read in the case and control data for each disease
+        case_df, control_df = load_genotypes(locus, disease)
 
         # Combine the case and control dataframes along columns
         df = pd.concat([case_df, control_df], axis=1)
@@ -227,7 +236,7 @@ def graphCancersGenotypes(locus, cancers):
         axs[i].set_title(locus)
         axs[i].set_xlabel('Repeat Length')
 
-    plt.suptitle(f'Genotype Distributions of {locus} across Cancers')
+    plt.suptitle(f'Genotype Distributions of {locus} across diseases')
     plt.tight_layout()
     plt.show()
 
@@ -237,25 +246,27 @@ def graphCancersGenotypes(locus, cancers):
 
 ### DIFFERENCE GRAPHING FUNCTIONS ###
 
-def graphDiff(loc, cancer):
-    dat = pd.read_csv(f'data/diffs/{cancer}_diff.csv', usecols=[loc])
+def graphDiff(loc, disease):
+    path = os.path.join(diff_folder, f'{disease}_diff.csv')
+    dat = pd.read_csv(path, usecols=[loc])
     dat[loc].hist(bins=100)
-    plt.title(f'{cancer} ; {loc} Distribution')
+    plt.title(f'{disease} ; {loc} Distribution')
     plt.xlabel('Tumor - Normal')
     plt.ylabel('Frequency')
     # Comment out not to save the figure
-    # plt.savefig(f'figs/{cancer}_{loc}.png')
+    # plt.savefig(f'figs/{disease}_{loc}.png')
     plt.show()
 
-def graphDiffLociHelper(loc, cancer, ax):
-    dat = pd.read_csv(f'data/diffs/{cancer}_diff.csv', usecols=[loc])
+def graphDiffLociHelper(loc, disease, ax):
+    path = os.path.join(diff_folder, f'{disease}_diff.csv')
+    dat = pd.read_csv(path, usecols=[loc])
     ax.hist(dat[loc], bins=100)
     ax.set_title(f'{loc} Distribution')
     ax.set_xlabel('Tumor - Normal')
     ax.set_ylabel('Frequency')
     
 
-def graphLociDiffs(loci, cancer):
+def graphLociDiffs(loci, disease):
     num_loci = len(loci)
     num_cols = 4
     num_rows = math.ceil(num_loci / num_cols)
@@ -265,9 +276,9 @@ def graphLociDiffs(loci, cancer):
 
     for idx, loc in enumerate(loci):
         ax = axs[idx]
-        graphDiffLociHelper(loc, cancer, ax)
+        graphDiffLociHelper(loc, disease, ax)
 
-    plt.title(f'{cancer} Differences (Tumor-Normal) Distributions')
+    plt.title(f'{disease} Differences (Tumor-Normal) Distributions')
     plt.tight_layout()  # To prevent overlap of subplots
     plt.show()
 
@@ -276,30 +287,31 @@ def graphLociDiffs(loci, cancer):
 
 
 
-def graphLoci(loc, cancers):
-    # Assuming cancers is a list of your cancers
-    num_cancers = len(cancers)
+def graphLoci(loc, diseases):
+    # Assuming diseases is a list of your diseases
+    num_diseases = len(diseases)
     num_cols = 5
-    num_rows = math.ceil(num_cancers / num_cols)
+    num_rows = math.ceil(num_diseases / num_cols)
 
     fig, axs = plt.subplots(num_rows, num_cols, figsize=(30, num_rows*5)) # Adjust the figure size as per your requirement
     axs = axs.ravel() # flatten the array of axes
 
-    for idx, cancer in enumerate(cancers):
+    for idx, disease in enumerate(diseases):
         ax = axs[idx]
         try:
-            graphLocus(loc, cancer, ax)
+            graphLocus(loc, disease, ax)
         except:
-            print(f'Could not graph {cancer}')
+            print(f'Could not graph {disease}')
             continue
 
     plt.tight_layout()  # To prevent overlap of subplots
     plt.show()
 
-def graphLocus(loc, cancer, ax):
-    dat = pd.read_csv(f'data/diffs/{cancer}_diff.csv', usecols=[loc])
+def graphLocus(loc, disease, ax):
+    path = os.path.join(diff_folder, f'{disease}_diff.csv')
+    dat = pd.read_csv(path, usecols=[loc])
     ax.hist(dat[loc], bins=100)
-    ax.set_title(f'{cancer}Distribution')
+    ax.set_title(f'{disease} Distribution')
     ax.set_xlabel('Tumor - Normal')
     ax.set_ylabel('Frequency')
 

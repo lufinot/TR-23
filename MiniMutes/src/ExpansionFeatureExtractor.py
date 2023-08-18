@@ -85,7 +85,7 @@ def calculate_wilcoxon_pvals(df: pd.DataFrame) -> np.ndarray:
             elif str(warning.message) == 'Sample size too small for normal approximation.':
                 logging.warning('Sample size is too small for normal approximation.')
     _, pvals_corrected, _, _ = multipletests(pvals, alpha=0.05, method='fdr_bh')
-    return pvals_corrected
+    return pvals, pvals_corrected
 
 
 
@@ -182,7 +182,7 @@ def process_and_extract_features(df) -> pd.DataFrame:
     features_df = pd.DataFrame({'ReferenceRegion': df.columns})
 
 
-    features_df['wilcox_pvals'] = calculate_wilcoxon_pvals(df)
+    features_df['raw_pvals'], features_df['corrected_pvals'] = calculate_wilcoxon_pvals(df)
     logging.info("Calculated Wilcoxon p-values.")
 
     clusts = cluster_features(df)

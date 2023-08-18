@@ -1,4 +1,3 @@
-# Shoutout Rashin Alabri for the original script
 # From https://gist.github.com/rashidalabri/5218b6510376e78c0a006cbf9b563b60
 
 #!/usr/bin/env python3

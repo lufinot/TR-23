@@ -14,9 +14,11 @@ import random
 from multiprocessing import Pool, cpu_count
 from functools import partial
 
+cpu_count = int(os.getenv('SLURM_CPUS_PER_TASK')) or cpu_count()
 MIN_READS = 6
 HIGH_COV = 24
 MAX_WIDTH = 4
+
 
 LOG_LEVEL = os.getenv('LOG_LEVEL') or 'info'
 log_dict = {'debug': logging.DEBUG, 'info': logging.INFO, 'warning': logging.WARNING, 
@@ -292,7 +294,7 @@ def process_locus(donor_id, data_case, data_control, local_case_df, local_contro
             continue
 
         
-        # if there is a big difference in read counts, (REVISIT)
+        # if there is a big difference in read counts, use support checking method (REVISIT, potential bias towards expansions )
         diff = abs(case_num - control_num)/min(case_num, control_num)
         if diff > 0.40:
             checked_control_genotypes = control_genotype_checker.identify_supported_genotypes()
@@ -469,7 +471,7 @@ def extract_genotypes_diffs(manifest_path, disease_name, raw_eh_dir, output_dir)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
     
-    with Pool(processes=cpu_count()) as pool:
+    with Pool(processes=cpu_count) as pool:
         func = partial(process_donor, raw_eh_dir=raw_eh_dir)
         results = pool.map(func, manifest.to_dict('records'))
 
